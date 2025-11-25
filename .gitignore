@@ -1,0 +1,31 @@
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+*.dylib
+
+# D compiler artifacts
+*.di
+.dub/
+docs.json
+__dummy.html
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test binaries
+tests/test_*
+!tests/*.d
+
+# Temporary files
+*.tmp
+*.log

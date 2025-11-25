@@ -1,0 +1,37 @@
+{
+    "name": "fastjsond",
+    "description": "High-performance JSON parser for D, wrapping simdjson",
+    "authors": ["Federico Filippi"],
+    "license": "MIT",
+    "targetType": "library",
+    
+    "sourcePaths": ["source"],
+    "importPaths": ["source"],
+    
+    "libs": ["c++"],
+    
+    "preBuildCommands": [
+        "make -C $PACKAGE_DIR lib"
+    ],
+    
+    "lflags": [
+        "-L$PACKAGE_DIR/build", "-lfastjsond"
+    ],
+    
+    "configurations": [
+        {
+            "name": "library",
+            "targetType": "library"
+        },
+        {
+            "name": "native-test",
+            "targetType": "executable",
+            "mainSourceFile": "tests/native_test.d"
+        },
+        {
+            "name": "std-test", 
+            "targetType": "executable",
+            "mainSourceFile": "tests/std_test.d"
+        }
+    ]
+}
