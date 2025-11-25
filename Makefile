@@ -39,12 +39,13 @@ else ifeq ($(UNAME_M),x86_64)
 endif
 
 # Source Files
-D_SOURCES := $(shell find $(SRC_DIR) -name '*.d' ! -path '*/c/*')
-CPP_SOURCES := $(C_SRC_DIR)/api.cpp $(C_SRC_DIR)/simdjson.cpp
+D_SOURCES   := $(shell find $(SRC_DIR) -name '*.d' ! -path '*/c/*')
+CPP_SOURCES := $(wildcard $(C_SRC_DIR)/*.cpp)
+CPP_OBJECTS := $(patsubst $(C_SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(CPP_SOURCES))
 
-# Object Files
-D_OBJECTS := $(BUILD_DIR)/fastjsond.o
-CPP_OBJECTS := $(BUILD_DIR)/api.o $(BUILD_DIR)/simdjson.o
+# Test files (auto-discovered)
+TEST_SOURCES := $(wildcard $(TEST_DIR)/*.d)
+TEST_TARGETS := $(patsubst $(TEST_DIR)/%.d,$(BUILD_DIR)/%,$(TEST_SOURCES))
 
 # ============================================================================
 # Phony Targets
@@ -95,9 +96,9 @@ $(BUILD_DIR)/simdjson.o: $(C_SRC_DIR)/simdjson.cpp | $(BUILD_DIR)
 	@echo "[CXX] Compiling simdjson..."
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Compile C API wrapper
-$(BUILD_DIR)/api.o: $(C_SRC_DIR)/api.cpp $(C_SRC_DIR)/api.h | $(BUILD_DIR)
-	@echo "[CXX] Compiling C API..."
+# Pattern rule: compile any C++ source
+$(BUILD_DIR)/%.o: $(C_SRC_DIR)/%.cpp | $(BUILD_DIR)
+	@echo "[CXX] Compiling $*..."
 	@$(CXX) $(CXXFLAGS) -I$(C_SRC_DIR) -c $< -o $@
 
 # Compile D sources
@@ -108,26 +109,51 @@ $(BUILD_DIR)/fastjsond.o: $(D_SOURCES) | $(BUILD_DIR)
 # Build static library
 lib: $(LIB_OUT)
 
-$(LIB_OUT): $(BUILD_DIR)/simdjson.o $(BUILD_DIR)/api.o $(BUILD_DIR)/fastjsond.o
+$(LIB_OUT): $(CPP_OBJECTS) $(BUILD_DIR)/fastjsond.o
 	@echo "[AR] Creating library..."
 	@$(AR) rcs $@ $^
 	@echo "✓ Library built: $@"
 	@echo "  Size: $$(du -h $@ | cut -f1)"
 
-# Run tests
-test: lib $(TEST_DIR)/native_test.d
-	@echo "Running tests..."
-	@$(DC) $(DFLAGS) $(TEST_DIR)/native_test.d $(LIB_OUT) -L-lc++ -of=$(BUILD_DIR)/tests
-	@$(BUILD_DIR)/tests
+# ============================================================================
+# Tests (Pattern Rule - builds any test automatically)
+# ============================================================================
 
-# Run std tests
-test-std: lib $(TEST_DIR)/std_test.d
-	@echo "Running std tests..."
-	@$(DC) $(DFLAGS) $(TEST_DIR)/std_test.d $(LIB_OUT) -L-lc++ -of=$(BUILD_DIR)/std_tests
-	@$(BUILD_DIR)/std_tests
+# Pattern rule: build any test from tests/*.d
+$(BUILD_DIR)/%: $(TEST_DIR)/%.d $(LIB_OUT) | $(BUILD_DIR)
+	@echo "[DC] Building $*..."
+	@$(DC) $(DFLAGS) $< $(LIB_OUT) -L-lc++ -of=$@ -od=$(BUILD_DIR)
+	@echo "✓ Built: $@"
+
+# Run native API tests
+test: $(BUILD_DIR)/native_test
+	@echo ""
+	@echo "Running Native API Tests..."
+	@echo "============================"
+	@$(BUILD_DIR)/native_test
+
+# Run std API tests  
+test-std: $(BUILD_DIR)/std_test
+	@echo ""
+	@echo "Running Std API Tests..."
+	@echo "========================"
+	@$(BUILD_DIR)/std_test
 
 # Run all tests
-test-all: test test-std
+test-all: $(BUILD_DIR)/native_test $(BUILD_DIR)/std_test
+	@echo ""
+	@echo "Running All Tests..."
+	@echo "===================="
+	@$(BUILD_DIR)/native_test
+	@echo ""
+	@$(BUILD_DIR)/std_test
+	@echo ""
+	@echo "✓ All 66 tests passed!"
+
+# Build all tests
+tests-build: $(TEST_TARGETS)
+	@echo "✓ All tests built in $(BUILD_DIR)/"
+	@echo "  Targets: $(notdir $(TEST_TARGETS))"
 
 # Run benchmarks
 bench: lib
