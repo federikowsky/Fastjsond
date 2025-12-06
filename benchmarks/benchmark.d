@@ -140,8 +140,8 @@ void main(string[] args) {
         
         benchmark500MB();
         benchmark1GB();
-        // benchmark2GB();
-        // benchmark5GB();
+        benchmark2GB();
+        benchmark5GB();
     }
     
     // ═══════════════════════════════════════════════════════════════════════════

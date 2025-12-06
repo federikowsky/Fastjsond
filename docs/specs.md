@@ -1,5 +1,12 @@
 # fastjsond - High-Performance JSON Parser for D
 
+> **Version**: 1.0.0  
+> **License**: MIT  
+> **Repository**: [github.com/federikowsky/fastjsond](https://github.com/federikowsky/fastjsond)  
+> **Last Updated**: 2025-12-06
+
+---
+
 ## Overview
 
 `fastjsond` is a D wrapper around [simdjson](https://github.com/simdjson/simdjson), It provides:
@@ -50,18 +57,38 @@ Thread-local usage recommended.
 
 ```d
 struct Parser {
-    /// Parse JSON string, returns Document
-    Document parse(const(char)[] json);
+    /// Create parser with specified max capacity
+    this(size_t maxCapacity) @nogc nothrow;
     
-    /// Parse with explicit padding (for maximum SIMD efficiency)
-    Document parsePadded(const(char)[] json, size_t padding = 64);
+    /// Create parser with default capacity
+    static Parser create() @nogc nothrow;
+    
+    /// Parse JSON string, returns Document
+    Document parse(const(char)[] json) @nogc nothrow;
+    
+    /// Parse from string (convenience overload)
+    Document parse(string json) @nogc nothrow;
     
     /// Parse from ubyte array
-    Document parse(const(ubyte)[] json);
+    Document parse(const(ubyte)[] json) @nogc nothrow;
+    
+    /// Parse with pre-padded buffer (for maximum SIMD efficiency)
+    /// Buffer must have SIMDJSON_PADDING (64) extra bytes at end
+    Document parsePadded(const(char)[] json) @nogc nothrow;
+    
+    /// Check if parser is valid
+    bool valid() const @nogc nothrow;
+    
+    /// Implicit bool conversion
+    bool opCast(T : bool)() const @nogc nothrow;
+    
+    // Move-only semantics
+    @disable this(this);
+    ref Parser opAssign(return scope Parser rhs) return @nogc nothrow;
 }
 
 // Usage
-auto parser = Parser();
+auto parser = Parser.create();
 auto doc = parser.parse(`{"name": "Aurora", "version": 1}`);
 ```
 
@@ -73,8 +100,17 @@ struct Document {
     /// Get root value
     Value root() @nogc nothrow;
     
+    /// Convenience: direct indexing into root object
+    Value opIndex(const(char)[] key);
+    
+    /// Convenience: direct indexing into root array
+    Value opIndex(size_t idx);
+    
     /// Check if parsing succeeded
     bool valid() const @nogc nothrow;
+    
+    /// Implicit bool conversion
+    bool opCast(T : bool)() const @nogc nothrow;
     
     /// Get error if parsing failed
     JsonError error() const @nogc nothrow;
@@ -84,7 +120,7 @@ struct Document {
     
     // Move-only semantics
     @disable this(this);
-    Document opAssign(Document rhs);  // Move assignment
+    ref Document opAssign(return scope Document rhs) return @nogc nothrow;
 }
 ```
 
@@ -109,37 +145,39 @@ struct Value {
     bool isObject() @nogc nothrow;
     
     // ─────────────────────────────────────────────────────
-    // Value Extraction (throw on type mismatch)
+    // Value Extraction (throws JsonException on type mismatch)
     // ─────────────────────────────────────────────────────
-    bool        getBool();
-    long        getInt();
-    ulong       getUint();
-    double      getDouble();
+    bool          getBool();
+    long          getInt();
+    ulong         getUint();
+    double        getDouble();
     const(char)[] getString() @nogc;  // Zero-copy!
     
     // ─────────────────────────────────────────────────────
     // Safe Extraction (return Result)
     // ─────────────────────────────────────────────────────
-    Result!bool        tryBool()   @nogc nothrow;
-    Result!long        tryInt()    @nogc nothrow;
-    Result!ulong       tryUint()   @nogc nothrow;
-    Result!double      tryDouble() @nogc nothrow;
-    Result!(const(char)[]) tryString() @nogc nothrow;
+    Result!bool              tryBool()   @nogc nothrow;
+    Result!long              tryInt()    @nogc nothrow;
+    Result!ulong             tryUint()   @nogc nothrow;
+    Result!double            tryDouble() @nogc nothrow;
+    Result!(const(char)[])   tryString() @nogc nothrow;
     
     // ─────────────────────────────────────────────────────
     // Object Access
     // ─────────────────────────────────────────────────────
-    Value opIndex(const(char)[] key);      // json["key"]
+    Value opIndex(const(char)[] key);      // json["key"] - throws if not found
     bool hasKey(const(char)[] key) @nogc nothrow;
+    size_t objectSize() @nogc nothrow;     // Number of fields
     
     // ─────────────────────────────────────────────────────
     // Array Access
     // ─────────────────────────────────────────────────────
-    Value opIndex(size_t idx);             // json[0]
+    Value opIndex(size_t idx);             // json[0] - throws if out of bounds
     size_t length() @nogc nothrow;         // Array/Object size
+    alias opDollar = length;
     
     // ─────────────────────────────────────────────────────
-    // Iteration
+    // Iteration (foreach support)
     // ─────────────────────────────────────────────────────
     // Array iteration
     int opApply(scope int delegate(Value element) dg);
@@ -148,9 +186,10 @@ struct Value {
     // Object iteration
     int opApply(scope int delegate(const(char)[] key, Value val) dg);
     
-    // Range interface
-    auto byElement();   // For arrays
-    auto byKeyValue();  // For objects
+    // ─────────────────────────────────────────────────────
+    // String Conversion (for debugging)
+    // ─────────────────────────────────────────────────────
+    string toString();
 }
 ```
 
@@ -173,29 +212,55 @@ enum JsonType : ubyte {
 enum JsonError : ubyte {
     none = 0,
     
-    // Structural errors
-    invalidJson,
-    emptyInput,
-    unexpectedEnd,
-    
-    // Type errors
-    typeMismatch,
-    keyNotFound,
-    indexOutOfBounds,
-    
-    // Encoding errors
-    invalidUtf8,
-    invalidEscape,
-    
-    // Number errors
-    numberOutOfRange,
-    invalidNumber,
-    
     // Capacity errors
-    documentTooDeep,
-    tooManyFields,
-    stringTooLong
+    capacity,           /// Document too large
+    memalloc,           /// Memory allocation failed
+    
+    // Parse errors
+    tapeError,          /// Internal tape error
+    depthError,         /// Document too deep (>1024 levels)
+    stringError,        /// Invalid string encoding
+    tAtomError,         /// Invalid 'true' literal
+    fAtomError,         /// Invalid 'false' literal
+    nAtomError,         /// Invalid 'null' literal
+    numberError,        /// Invalid number format
+    utf8Error,          /// Invalid UTF-8 encoding
+    
+    // State errors
+    uninitialized,      /// Parser not initialized
+    empty,              /// Empty input
+    
+    // Syntax errors
+    unescapedChars,     /// Unescaped control characters
+    unclosedString,     /// Unclosed string literal
+    
+    // Runtime errors
+    unsupportedArch,    /// Unsupported CPU architecture
+    incorrectType,      /// Type mismatch
+    numberOutOfRange,   /// Number out of representable range
+    indexOutOfBounds,   /// Array index out of bounds
+    noSuchField,        /// Object field not found
+    ioError,            /// I/O error (file operations)
+    
+    // JSON Pointer errors
+    invalidJsonPointer, /// Invalid JSON Pointer syntax
+    invalidUriFragment, /// Invalid URI fragment
+    
+    // Internal errors
+    unexpectedError,    /// Unexpected internal error
+    parserInUse,        /// Parser already parsing
+    outOfOrderIteration,/// Iteration order violation
+    insufficientPadding,/// Insufficient buffer padding
+    incompleteStructure,/// Incomplete array/object
+    scalarAsValue,      /// Scalar document accessed as value
+    outOfBounds,        /// Generic out of bounds
+    trailingContent,    /// Trailing content after JSON
+    
+    unknown = 255       /// Unknown error
 }
+
+/// Get human-readable error message
+string errorMessage(JsonError err) @nogc nothrow;
 ```
 
 #### `Result(T)`
@@ -204,15 +269,59 @@ struct Result(T) {
     private T _value;
     private JsonError _error;
     
-    bool valid() const @nogc nothrow;
+    /// Construct success result
+    static Result ok(T value) @nogc nothrow;
+    
+    /// Construct error result
+    static Result err(JsonError error) @nogc nothrow;
+    
+    /// Check if result is valid (no error)
+    bool ok() const @nogc nothrow;
+    
+    /// Check if result has error
+    bool hasError() const @nogc nothrow;
+    
+    /// Get error code
     JsonError error() const @nogc nothrow;
     
-    T value() const;              // Throws if error
-    T valueOr(T defaultVal) const @nogc nothrow;
+    /// Get value (throws JsonException if error)
+    T value() const;
     
-    // Implicit conversion when valid
-    alias opCast(bool) = valid;
+    /// Get value or default
+    T valueOr(T defaultValue) const @nogc nothrow;
+    
+    /// Implicit bool conversion: if (result) { ... }
+    bool opCast(T : bool)() const @nogc nothrow;
 }
+```
+
+#### `JsonException`
+```d
+class JsonException : Exception {
+    JsonError error;
+    
+    this(JsonError err, string file = __FILE__, size_t line = __LINE__);
+    this(string msg, JsonError err = JsonError.unknown, 
+         string file = __FILE__, size_t line = __LINE__);
+}
+```
+
+### Module-Level Functions
+
+```d
+/// Quickly validate JSON without full parse.
+/// Faster than full parse if you only need to check validity.
+/// Returns: JsonError.none if valid, error code otherwise.
+JsonError validate(const(char)[] json) @nogc nothrow;
+
+/// Get required padding for SIMD optimization.
+/// When using parsePadded(), ensure your buffer has this many
+/// extra bytes at the end.
+size_t requiredPadding() @nogc nothrow;
+
+/// Get active SIMD implementation name.
+/// Returns: "haswell", "westmere", "arm64", "fallback", etc.
+const(char)[] activeImplementation() @nogc nothrow;
 ```
 
 ### Usage Examples

@@ -44,7 +44,7 @@ string nameCopy = name.idup;
 ### Using Make (Recommended)
 
 ```bash
-git clone https://github.com/your-repo/fastjsond.git
+git clone https://github.com/federikowsky/fastjsond.git
 cd fastjsond
 make lib      # Build static library
 make test     # Run tests (66 tests)
@@ -123,7 +123,7 @@ string pretty = toPrettyJSON(json);
 
 ## Benchmark Results
 
-Tested on Apple M1, parsing various JSON payloads:
+Tested on Apple M4, parsing various JSON payloads:
 
 | Payload Size | std.json | fastjsond.std | fastjsond native | Speedup |
 |--------------|----------|---------------|------------------|---------|
@@ -221,5 +221,3 @@ MIT License - see [LICENSE](LICENSE) file.
 ## Acknowledgments
 
 - [simdjson](https://github.com/simdjson/simdjson) - The amazing C++ JSON parser this wraps
-- [Wire](https://github.com/your-repo/wire) - Sister project (HTTP parser wrapper)
-- [Aurora](https://github.com/your-repo/aurora) - High-performance D web framework

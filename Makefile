@@ -18,12 +18,12 @@ LIB_NAME     := libfastjsond.a
 LIB_OUT      := $(BUILD_DIR)/$(LIB_NAME)
 
 # Compiler Flags
-DFLAGS       := -O3 -I$(SRC_DIR)
+DFLAGS       := -O2 -I$(SRC_DIR)
 DFLAGS_DEBUG := -g -I$(SRC_DIR)
 DFLAGS_LIB   := $(DFLAGS) -lib -oq
 
 # C++ Flags for simdjson
-CXXFLAGS     := -O3 -std=c++17 -DNDEBUG
+CXXFLAGS     := -O2 -std=c++17 -DNDEBUG
 CXXFLAGS     += -fPIC
 # Enable all SIMD optimizations
 CXXFLAGS     += -march=native

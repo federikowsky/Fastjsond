@@ -1,37 +1,43 @@
 {
     "name": "fastjsond",
+    "version": "1.0.0",
     "description": "High-performance JSON parser for D, wrapping simdjson",
     "authors": ["Federico Filippi"],
     "license": "MIT",
-    "targetType": "library",
+    "homepage": "https://github.com/federikowsky/fastjsond",
+    "copyright": "Copyright 2024 Federico Filippi",
     
+    "targetType": "library",
     "sourcePaths": ["source"],
     "importPaths": ["source"],
     
-    "libs": ["c++"],
+    "libs-posix": ["c++"],
+    "libs-windows": ["msvcprt"],
     
-    "preBuildCommands": [
-        "make -C $PACKAGE_DIR lib"
+    "preBuildCommands-posix": [
+        "mkdir -p $PACKAGE_DIR/.dub/obj",
+        "c++ -c -O2 -std=c++17 -fPIC -DNDEBUG $PACKAGE_DIR/source/fastjsond/c/simdjson.cpp -o $PACKAGE_DIR/.dub/obj/simdjson.o",
+        "c++ -c -O2 -std=c++17 -fPIC -DNDEBUG -I$PACKAGE_DIR/source/fastjsond/c $PACKAGE_DIR/source/fastjsond/c/api.cpp -o $PACKAGE_DIR/.dub/obj/api.o"
     ],
     
-    "lflags": [
-        "-L$PACKAGE_DIR/build", "-lfastjsond"
+    "preBuildCommands-windows": [
+        "if not exist \"%PACKAGE_DIR%\\.dub\\obj\" mkdir \"%PACKAGE_DIR%\\.dub\\obj\"",
+        "cl /c /O2 /std:c++17 /EHsc /DNDEBUG \"%PACKAGE_DIR%\\source\\fastjsond\\c\\simdjson.cpp\" /Fo\"%PACKAGE_DIR%\\.dub\\obj\\simdjson.obj\"",
+        "cl /c /O2 /std:c++17 /EHsc /DNDEBUG /I\"%PACKAGE_DIR%\\source\\fastjsond\\c\" \"%PACKAGE_DIR%\\source\\fastjsond\\c\\api.cpp\" /Fo\"%PACKAGE_DIR%\\.dub\\obj\\api.obj\""
     ],
     
-    "configurations": [
-        {
-            "name": "library",
-            "targetType": "library"
-        },
-        {
-            "name": "native-test",
-            "targetType": "executable",
-            "mainSourceFile": "tests/native_test.d"
-        },
-        {
-            "name": "std-test", 
-            "targetType": "executable",
-            "mainSourceFile": "tests/std_test.d"
+    "postBuildCommands-posix": [
+        "ar rcs $PACKAGE_DIR/libfastjsond.a $PACKAGE_DIR/.dub/obj/simdjson.o $PACKAGE_DIR/.dub/obj/api.o"
+    ],
+    
+    "postBuildCommands-windows": [
+        "lib /OUT:\"%PACKAGE_DIR%\\fastjsond.lib\" \"%PACKAGE_DIR%\\fastjsond.lib\" \"%PACKAGE_DIR%\\.dub\\obj\\simdjson.obj\" \"%PACKAGE_DIR%\\.dub\\obj\\api.obj\""
+    ],
+    
+    "buildTypes": {
+        "release": {
+            "dflags-ldc2": ["-O2", "-release", "-enable-inlining"],
+            "dflags-dmd": ["-O", "-release", "-inline"]
         }
-    ]
+    }
 }
