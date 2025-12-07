@@ -324,6 +324,63 @@ void main() {
     });
     
     // ─────────────────────────────────────────────────────────────────────────
+    // Edge Case Tests (Robustness)
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    writeln();
+    writeln("Edge Case Tests:");
+    
+    test("Deep nested JSON (50 levels)", {
+        auto parser = Parser.create();
+        string json = "";
+        for (int i = 0; i < 50; i++) json ~= `{"a":`;
+        json ~= "42";
+        for (int i = 0; i < 50; i++) json ~= "}";
+        
+        auto doc = parser.parse(json);
+        if (!doc.valid) return false;
+        
+        auto val = doc.root;
+        for (int i = 0; i < 50; i++) val = val["a"];
+        return val.getInt == 42;
+    });
+    
+    test("Large JSON array (10000 elements)", {
+        auto parser = Parser.create();
+        import std.array : appender;
+        import std.conv : to;
+        auto sb = appender!string();
+        sb.put("[");
+        for (int i = 0; i < 10000; i++) {
+            if (i > 0) sb.put(",");
+            sb.put(i.to!string);
+        }
+        sb.put("]");
+        
+        auto doc = parser.parse(sb.data);
+        if (!doc.valid) return false;
+        if (doc.root.length != 10000) return false;
+        return doc.root[0].getInt == 0 && doc.root[9999].getInt == 9999;
+    });
+    
+    test("Large JSON object (1000 keys)", {
+        auto parser = Parser.create();
+        import std.array : appender;
+        import std.conv : to;
+        auto sb = appender!string();
+        sb.put("{");
+        for (int i = 0; i < 1000; i++) {
+            if (i > 0) sb.put(",");
+            sb.put(`"k` ~ i.to!string ~ `":` ~ i.to!string);
+        }
+        sb.put("}");
+        
+        auto doc = parser.parse(sb.data);
+        if (!doc.valid) return false;
+        return doc.root["k0"].getInt == 0 && doc.root["k999"].getInt == 999;
+    });
+    
+    // ─────────────────────────────────────────────────────────────────────────
     // Summary
     // ─────────────────────────────────────────────────────────────────────────
     

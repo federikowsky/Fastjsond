@@ -2,7 +2,7 @@
 
 **High-Performance JSON Parser for D** - A wrapper around [simdjson](https://github.com/simdjson/simdjson), the world's fastest JSON parser.
 
-[![Build Status](https://img.shields.io/badge/tests-66%20passing-brightgreen)](tests/)
+[![Build Status](https://img.shields.io/badge/tests-69%20passing-brightgreen)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Features
