@@ -1,6 +1,5 @@
 {
     "name": "fastjsond",
-    "version": "1.0.0",
     "description": "High-performance JSON parser for D, wrapping simdjson",
     "authors": ["Federico Filippi"],
     "license": "MIT",
