@@ -1,9 +1,9 @@
 # fastjsond - High-Performance JSON Parser for D
 
-> **Version**: 1.0.0  
+> **Version**: 1.0.2  
 > **License**: MIT  
 > **Repository**: [github.com/federikowsky/fastjsond](https://github.com/federikowsky/fastjsond)  
-> **Last Updated**: 2025-12-06
+> **Last Updated**: 2025-12-09
 
 ---
 
@@ -472,7 +472,7 @@ string name = json["name"].str;
 
 ## Performance Characteristics
 
-### Parsing Speed (measured on Apple M1)
+### Parsing Speed (measured on MacBook Pro M4)
 
 | Parser | Throughput | Relative |
 |--------|------------|----------|

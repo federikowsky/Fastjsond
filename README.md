@@ -410,7 +410,7 @@ void processRequest(const(char)[] json) {
 
 ## Performance
 
-Benchmarked on Apple M1:
+Benchmarked on MacBook Pro M4 (10-core, 16GB RAM):
 
 | Payload | std.json | fastjsond | Speedup |
 |---------|----------|-----------|---------|

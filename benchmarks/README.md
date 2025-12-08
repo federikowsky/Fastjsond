@@ -69,7 +69,7 @@ Or use the benchmark binary directly:
 
 ## Results
 
-### Basic Tests (Apple M1)
+### Basic Tests (MacBook Pro M4)
 
 | Benchmark | std.json | fastjsond.std | fastjsond native | Speedup |
 |-----------|----------|---------------|------------------|---------|
