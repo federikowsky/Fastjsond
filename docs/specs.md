@@ -151,7 +151,7 @@ struct Value {
     long          getInt();
     ulong         getUint();
     double        getDouble();
-    const(char)[] getString() @nogc;  // Zero-copy!
+    const(char)[] getString() @nogc;  // Zero-copy! Returns null on error
     
     // ─────────────────────────────────────────────────────
     // Safe Extraction (return Result)
@@ -436,9 +436,6 @@ struct JSONValue {
 /// Parse JSON string (throws JSONException on error)
 JSONValue parseJSON(string json);
 JSONValue parseJSON(const(char)[] json);
-
-/// Parse with options
-JSONValue parseJSON(string json, ParseOptions options);
 
 /// Convert to JSON string
 string toJSON(JSONValue value);

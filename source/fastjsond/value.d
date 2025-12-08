@@ -142,14 +142,16 @@ struct Value {
      * WARNING: Returns a slice into the original JSON buffer.
      * Valid only while Document exists. Use .idup to copy.
      *
-     * Throws JsonException on type mismatch.
+     * Returns null on error (type mismatch or invalid value).
+     * Cannot throw exceptions because of @nogc constraint.
+     * Use tryString() for safe access with Result type.
      */
     const(char)[] getString() @nogc {
         const(char)* ptr;
         size_t len;
         auto err = cast(JsonError) fj_value_get_string(handle, &ptr, &len);
         if (err != JsonError.none) {
-            // Can't throw in @nogc, return empty
+            // Can't throw in @nogc, return null
             return null;
         }
         return ptr[0 .. len];

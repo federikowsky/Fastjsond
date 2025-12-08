@@ -4,7 +4,7 @@
     "authors": ["Federico Filippi"],
     "license": "MIT",
     "homepage": "https://github.com/federikowsky/fastjsond",
-    "copyright": "Copyright 2024 Federico Filippi",
+    "copyright": "Copyright 2025 Federico Filippi",
     
     "targetType": "library",
     "sourcePaths": ["source"],

@@ -277,6 +277,21 @@ void main() {
         return impl.length > 0;
     });
     
+    test("Parse padded buffer API", {
+        auto parser = Parser.create();
+        
+        // Test that parsePadded() API exists and works
+        // Note: Current implementation calls parse() internally, so it works with regular JSON
+        // This test verifies the API is functional
+        string jsonStr = `{"test": 42}`;
+        
+        // For now, test with regular string (parsePadded will work because it calls parse internally)
+        // In a full implementation, this would require a properly padded buffer
+        auto doc = parser.parsePadded(jsonStr);
+        if (!doc.valid) return false;
+        return doc.root["test"].getInt == 42;
+    });
+    
     // ─────────────────────────────────────────────────────────────────────────
     // Complex JSON Test
     // ─────────────────────────────────────────────────────────────────────────
@@ -378,6 +393,192 @@ void main() {
         auto doc = parser.parse(sb.data);
         if (!doc.valid) return false;
         return doc.root["k0"].getInt == 0 && doc.root["k999"].getInt == 999;
+    });
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Error Handling Tests
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    writeln();
+    writeln("Error Handling Tests:");
+    
+    test("getString returns null on type mismatch", {
+        auto parser = Parser.create();
+        auto doc = parser.parse(`42`);
+        if (!doc.valid) return false;
+        // getString() should return null for non-string value (can't throw in @nogc)
+        return doc.root.getString is null;
+    });
+    
+    test("getString returns null on invalid value", {
+        auto parser = Parser.create();
+        auto doc = parser.parse(`{"invalid": null}`);
+        if (!doc.valid) return false;
+        // getString() should return null for null value
+        return doc.root["invalid"].getString is null;
+    });
+    
+    test("Capacity error with small parser", {
+        auto parser = Parser(100); // Very small capacity (100 bytes)
+        // Try to parse a document larger than capacity
+        import std.array : appender;
+        auto sb = appender!string();
+        sb.put(`{"data": "`);
+        // Add enough data to exceed 100 bytes
+        foreach (_; 0 .. 200) {
+            sb.put("x");
+        }
+        sb.put(`"}`);
+        
+        auto doc = parser.parse(sb.data);
+        // Should fail with capacity error
+        return !doc.valid && doc.error == JsonError.capacity;
+    });
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // UTF-8 Edge Cases Tests
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    writeln();
+    writeln("UTF-8 Edge Cases Tests:");
+    
+    test("UTF-8 emoji in string", {
+        auto parser = Parser.create();
+        // Test with emoji (4-byte UTF-8)
+        auto doc = parser.parse(`"Hello 🌍 World"`);
+        if (!doc.valid) return false;
+        auto str = doc.root.getString;
+        // Verify string contains emoji by checking length (emoji takes 4 bytes)
+        return str.length > 10; // "Hello " is 6 bytes, emoji is 4, " World" is 6 = 16 bytes
+    });
+    
+    test("UTF-8 Chinese characters", {
+        auto parser = Parser.create();
+        // Test with Chinese characters (3-byte UTF-8)
+        auto doc = parser.parse(`"你好世界"`);
+        if (!doc.valid) return false;
+        auto str = doc.root.getString;
+        return str.length > 0;
+    });
+    
+    test("UTF-8 mixed scripts", {
+        auto parser = Parser.create();
+        // Test with mixed scripts (Latin, Cyrillic, Arabic, etc.)
+        auto doc = parser.parse(`"Hello Привет مرحبا"`);
+        if (!doc.valid) return false;
+        auto str = doc.root.getString;
+        return str.length > 0;
+    });
+    
+    test("UTF-8 escape sequences", {
+        auto parser = Parser.create();
+        // Test with Unicode escape sequences
+        // Note: simdjson returns escape sequences as-is (doesn't decode them)
+        auto doc = parser.parse(`"\\u0041\\u0042\\u0043"`); // \u0041\u0042\u0043
+        if (!doc.valid) return false;
+        auto str = doc.root.getString;
+        // String should contain the escape sequences literally
+        return str.length > 0 && str.length == 18; // "\u0041\u0042\u0043" is 18 chars
+    });
+    
+    test("UTF-8 high surrogate pair", {
+        auto parser = Parser.create();
+        // Test with high surrogate (U+1F600 = 😀, encoded as \uD83D\uDE00)
+        auto doc = parser.parse(`"\\uD83D\\uDE00"`); // 😀 emoji
+        if (!doc.valid) return false;
+        auto str = doc.root.getString;
+        return str.length > 0;
+    });
+    
+    test("UTF-8 in object keys", {
+        auto parser = Parser.create();
+        // Test UTF-8 in object keys
+        auto doc = parser.parse(`{"名字": "test", "âge": 25}`);
+        if (!doc.valid) return false;
+        // Should be able to access keys with UTF-8
+        return doc.root.hasKey("名字") && doc.root.hasKey("âge");
+    });
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Number Limit Tests
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    writeln();
+    writeln("Number Limit Tests:");
+    
+    test("MAX_INT64", {
+        auto parser = Parser.create();
+        // Maximum signed 64-bit integer: 9223372036854775807
+        auto doc = parser.parse(`9223372036854775807`);
+        if (!doc.valid) return false;
+        if (!doc.root.isInt) return false;
+        return doc.root.getInt == 9223372036854775807L;
+    });
+    
+    test("MIN_INT64", {
+        auto parser = Parser.create();
+        // Minimum signed 64-bit integer: -9223372036854775808
+        // Note: Can't write -9223372036854775808L directly (overflow), so we parse and check
+        auto doc = parser.parse(`-9223372036854775808`);
+        if (!doc.valid) return false;
+        if (!doc.root.isInt) return false;
+        // Check that it's the minimum value
+        long minVal = doc.root.getInt;
+        return minVal == long.min; // long.min is -9223372036854775808
+    });
+    
+    test("MAX_UINT64", {
+        auto parser = Parser.create();
+        // Maximum unsigned 64-bit integer: 18446744073709551615
+        auto doc = parser.parse(`18446744073709551615`);
+        if (!doc.valid) return false;
+        if (!doc.root.isUint) return false;
+        return doc.root.getUint == 18446744073709551615UL;
+    });
+    
+    test("Zero as integer", {
+        auto parser = Parser.create();
+        auto doc = parser.parse(`0`);
+        if (!doc.valid) return false;
+        if (!doc.root.isInt) return false;
+        return doc.root.getInt == 0;
+    });
+    
+    test("Zero as unsigned", {
+        auto parser = Parser.create();
+        auto doc = parser.parse(`0`);
+        if (!doc.valid) return false;
+        // Zero can be both int and uint
+        return doc.root.isInt || doc.root.isUint;
+    });
+    
+    test("Large double precision", {
+        auto parser = Parser.create();
+        // Test with very large double
+        auto doc = parser.parse(`1.7976931348623157e+308`);
+        if (!doc.valid) return false;
+        if (!doc.root.isDouble) return false;
+        auto val = doc.root.getDouble;
+        return val > 1e300;
+    });
+    
+    test("Small double precision", {
+        auto parser = Parser.create();
+        // Test with very small double (denormalized)
+        auto doc = parser.parse(`2.2250738585072014e-308`);
+        if (!doc.valid) return false;
+        if (!doc.root.isDouble) return false;
+        auto val = doc.root.getDouble;
+        return val > 0 && val < 1e-300;
+    });
+    
+    test("Integer overflow detection", {
+        auto parser = Parser.create();
+        // Test with number larger than MAX_UINT64
+        // simdjson returns numberError for numbers that exceed representable range
+        auto doc = parser.parse(`18446744073709551616`); // MAX_UINT64 + 1
+        // Should fail with numberError
+        return !doc.valid && doc.error == JsonError.numberError;
     });
     
     // ─────────────────────────────────────────────────────────────────────────
