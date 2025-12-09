@@ -361,9 +361,11 @@ try {
 }
 
 // getString() throws JsonException on error (coherent with other get*() methods)
-const(char)[] str = value.getString();
-if (str is null) {
-    // Error occurred - use tryString() for proper error handling
+try {
+    const(char)[] str = value.getString();
+    // Use str...
+} catch (JsonException e) {
+    // Handle error - use tryString() for explicit error handling in @nogc contexts
 }
 ```
 
@@ -428,7 +430,7 @@ For comprehensive benchmark results, see [benchmarks/README.md](benchmarks/READM
 
 Native API strings are borrowed references into the original JSON buffer. They are valid only while the Document exists.
 
-**Important:** `getString()` returns `null` on error (cannot throw exceptions due to `@nogc` constraint). Use `tryString()` for proper error handling.
+**Important:** `getString()` throws `JsonException` on error (coherent with other `get*()` methods). Use `tryString()` for `@nogc` contexts or explicit error handling.
 
 ```d
 // Incorrect: reference invalid after doc goes out of scope
