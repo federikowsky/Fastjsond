@@ -592,6 +592,68 @@ void main() {
     });
     
     // ─────────────────────────────────────────────────────────────────────────
+    // Specific Error Tests
+    // ─────────────────────────────────────────────────────────────────────────
+    
+    writeln();
+    writeln("Specific Error Tests:");
+    
+    test("Depth error with very deep nesting (>1024 levels)", {
+        auto parser = Parser.create();
+        // Create JSON with >1024 levels of nesting
+        // simdjson limit is 1024 levels
+        string json = "";
+        for (int i = 0; i < 1025; i++) json ~= `{"a":`;
+        json ~= "42";
+        for (int i = 0; i < 1025; i++) json ~= "}";
+        
+        auto doc = parser.parse(json);
+        // Should fail with depthError
+        return !doc.valid && doc.error == JsonError.depthError;
+    });
+    
+    test("UTF-8 error with invalid sequence", {
+        auto parser = Parser.create();
+        // Create JSON with invalid UTF-8 sequence
+        // 0xFF 0xFE is invalid UTF-8 (not a valid start byte)
+        ubyte[] invalidUtf8 = [0x22, 0xFF, 0xFE, 0x22]; // "invalid"
+        auto doc = parser.parse(cast(const(char)[]) invalidUtf8);
+        // Should fail with utf8Error or stringError
+        return !doc.valid && (doc.error == JsonError.utf8Error || doc.error == JsonError.stringError);
+    });
+    
+    test("UTF-8 error with incomplete sequence", {
+        auto parser = Parser.create();
+        // Create JSON with incomplete UTF-8 sequence
+        // 0xC0 starts a 2-byte sequence but is incomplete
+        ubyte[] incompleteUtf8 = [0x22, 0xC0, 0x22]; // "incomplete"
+        auto doc = parser.parse(cast(const(char)[]) incompleteUtf8);
+        // Should fail with utf8Error or stringError
+        return !doc.valid && (doc.error == JsonError.utf8Error || doc.error == JsonError.stringError);
+    });
+    
+    test("Unclosed string error", {
+        auto parser = Parser.create();
+        // Create JSON with unclosed string
+        auto doc = parser.parse(`{"key": "unclosed`);
+        // Should fail with unclosedString error
+        return !doc.valid && doc.error == JsonError.unclosedString;
+    });
+    
+    test("Unescaped control characters error", {
+        auto parser = Parser.create();
+        // Create JSON with unescaped control character (0x01)
+        ubyte[] withControl = [0x22, 0x01, 0x22]; // "\x01"
+        auto doc = parser.parse(cast(const(char)[]) withControl);
+        // Should fail with unescapedChars error
+        return !doc.valid && doc.error == JsonError.unescapedChars;
+    });
+    
+    // Note: memalloc error is difficult to test deterministically
+    // as it depends on system memory availability. It would require
+    // allocating an extremely large document that exceeds available memory.
+    
+    // ─────────────────────────────────────────────────────────────────────────
     // Summary
     // ─────────────────────────────────────────────────────────────────────────
     

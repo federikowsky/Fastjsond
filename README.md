@@ -360,6 +360,39 @@ try {
     writeln("Error: ", e.error, " - ", e.msg);
 }
 
+// More Result<T> examples:
+
+// Chaining multiple optional fields
+if (auto name = doc.root["user"].tryString) {
+    if (auto email = doc.root["email"].tryString) {
+        writeln("User: ", name.value, " <", email.value, ">");
+    }
+}
+
+// Using valueOr() for defaults
+long count = doc.root["count"].tryInt.valueOr(0);
+const(char)[] title = doc.root["title"].tryString.valueOr("Untitled");
+
+// Checking specific error types
+if (auto result = doc.root["data"].tryInt) {
+    processData(result.value);
+} else if (result.error == JsonError.incorrectType) {
+    writeln("Expected integer, got: ", doc.root["data"].type);
+} else if (result.error == JsonError.noSuchField) {
+    writeln("Field 'data' not found");
+}
+
+// Pattern: Process array with error handling
+foreach (item; doc.root["items"]) {
+    if (auto id = item["id"].tryInt) {
+        if (auto name = item["name"].tryString) {
+            processItem(id.value, name.value);
+        } else {
+            writeln("Item ", id.value, " missing name");
+        }
+    }
+}
+
 // getString() throws JsonException on error (coherent with other get*() methods)
 try {
     const(char)[] str = value.getString();
@@ -462,6 +495,88 @@ string getName() {
 }
 ```
 
+## Migration Guide
+
+### From std.json
+
+`fastjsond.std` is a drop-in replacement for `std.json`. Simply change your import:
+
+```d
+// Before
+import std.json;
+auto json = parseJSON(`{"name": "test"}`);
+string name = json["name"].str;
+
+// After
+import fastjsond.std;
+auto json = parseJSON(`{"name": "test"}`);
+string name = json["name"].str;  // Identical API!
+```
+
+**Benefits:**
+- ✅ Same API - no code changes needed
+- ✅ 1.5-2.5x faster parsing
+- ✅ Thread-safe after creation
+- ✅ Better error messages
+
+**Differences:**
+- Exception type is `JSONException` (same as `std.json`)
+- All strings are copied (not zero-copy like native API)
+- No streaming support (same as `std.json`)
+
+### From fastjsond v1.0.0/v1.0.1
+
+**Breaking Changes in v1.0.2:**
+
+1. **`getString()` behavior changed**:
+   - **Before**: Returned `null` on error (due to `@nogc` constraint)
+   - **After**: Throws `JsonException` on error (consistent with other `get*()` methods)
+   
+   **Migration:**
+   ```d
+   // Before (v1.0.0/v1.0.1)
+   const(char)[] str = value.getString();
+   if (str is null) {
+       // Handle error
+   }
+   
+   // After (v1.0.2)
+   try {
+       const(char)[] str = value.getString();
+       // Use str...
+   } catch (JsonException e) {
+       // Handle error
+   }
+   
+   // Or use tryString() for @nogc contexts (unchanged)
+   if (auto result = value.tryString) {
+       const(char)[] str = result.value;
+   }
+   ```
+
+2. **No other breaking changes** - all other APIs remain compatible.
+
+### From Native API to std API
+
+If you're using the native API and want to switch to the std API for easier migration:
+
+```d
+// Native API (zero-copy, maximum performance)
+import fastjsond;
+auto parser = Parser.create();
+auto doc = parser.parse(json);
+const(char)[] name = doc.root["name"].getString;  // Zero-copy!
+
+// std API (copies data, easier to use)
+import fastjsond.std;
+auto json = parseJSON(json);
+string name = json["name"].str;  // Copied to GC heap
+```
+
+**When to use each:**
+- **Native API**: Performance-critical code, zero-copy needed, `@nogc` contexts
+- **std API**: Easier migration, thread-safety needed, simpler lifetime management
+
 ## Building
 
 ### Requirements
@@ -491,6 +606,13 @@ Contributions are welcome. Please ensure:
 1. Tests pass (`make test`)
 2. Benchmarks do not regress
 3. Code follows D style guidelines
+
+### Future Testing Improvements
+
+We welcome contributions for:
+- **Property-based testing**: Using libraries like `dproperty` to generate random valid JSON and verify parsing correctness
+- **Fuzz testing**: Testing with malformed inputs to improve robustness
+- **Performance regression tests**: Automated benchmarks to catch performance regressions
 
 ## License
 
