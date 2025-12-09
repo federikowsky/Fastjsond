@@ -402,20 +402,30 @@ void main() {
     writeln();
     writeln("Error Handling Tests:");
     
-    test("getString returns null on type mismatch", {
+    test("getString throws on type mismatch", {
         auto parser = Parser.create();
         auto doc = parser.parse(`42`);
         if (!doc.valid) return false;
-        // getString() should return null for non-string value (can't throw in @nogc)
-        return doc.root.getString is null;
+        // getString() should throw JsonException for non-string value
+        try {
+            doc.root.getString;
+            return false;  // Should have thrown
+        } catch (JsonException e) {
+            return e.error == JsonError.incorrectType;
+        }
     });
     
-    test("getString returns null on invalid value", {
+    test("getString throws on invalid value", {
         auto parser = Parser.create();
         auto doc = parser.parse(`{"invalid": null}`);
         if (!doc.valid) return false;
-        // getString() should return null for null value
-        return doc.root["invalid"].getString is null;
+        // getString() should throw JsonException for null value
+        try {
+            doc.root["invalid"].getString;
+            return false;  // Should have thrown
+        } catch (JsonException e) {
+            return e.error == JsonError.incorrectType;
+        }
     });
     
     test("Capacity error with small parser", {

@@ -151,7 +151,7 @@ struct Value {
     long          getInt();
     ulong         getUint();
     double        getDouble();
-    const(char)[] getString() @nogc;  // Zero-copy! Returns null on error
+    const(char)[] getString();  // Zero-copy! Throws JsonException on error
     
     // ─────────────────────────────────────────────────────
     // Safe Extraction (return Result)

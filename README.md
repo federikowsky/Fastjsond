@@ -167,11 +167,8 @@ long   n = value.getInt();
 ulong  u = value.getUint();
 double d = value.getDouble();
 
-// getString() returns null on error (can't throw in @nogc)
-const(char)[] s = value.getString();  // Zero-copy, returns null on error
-if (s is null) {
-    // Handle error - use tryString() for proper error handling
-}
+// Throwing extraction (throws JsonException on error)
+const(char)[] s = value.getString();  // Zero-copy, throws on error
 
 // Safe extraction with Result<T> (no exceptions)
 if (auto result = value.tryBool()) {
@@ -363,7 +360,7 @@ try {
     writeln("Error: ", e.error, " - ", e.msg);
 }
 
-// Note: getString() returns null on error (can't throw in @nogc)
+// getString() throws JsonException on error (coherent with other get*() methods)
 const(char)[] str = value.getString();
 if (str is null) {
     // Error occurred - use tryString() for proper error handling
