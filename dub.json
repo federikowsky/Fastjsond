@@ -5,34 +5,42 @@
     "license": "MIT",
     "homepage": "https://github.com/federikowsky/fastjsond",
     "copyright": "Copyright 2025 Federico Filippi",
-    
+
     "targetType": "library",
     "sourcePaths": ["source"],
     "importPaths": ["source"],
-    
-    "libs-posix": ["c++"],
+
+    "libs-linux": ["stdc++"],
+    "libs-osx": ["c++"],
     "libs-windows": ["msvcprt"],
-    
+
     "preBuildCommands-posix": [
         "mkdir -p $PACKAGE_DIR/.dub/obj",
         "c++ -c -O2 -std=c++17 -fPIC -DNDEBUG $PACKAGE_DIR/source/fastjsond/c/simdjson.cpp -o $PACKAGE_DIR/.dub/obj/simdjson.o",
         "c++ -c -O2 -std=c++17 -fPIC -DNDEBUG -I$PACKAGE_DIR/source/fastjsond/c $PACKAGE_DIR/source/fastjsond/c/api.cpp -o $PACKAGE_DIR/.dub/obj/api.o"
     ],
-    
+
     "preBuildCommands-windows": [
         "if not exist \"%PACKAGE_DIR%\\.dub\\obj\" mkdir \"%PACKAGE_DIR%\\.dub\\obj\"",
         "cl /c /O2 /std:c++17 /EHsc /DNDEBUG \"%PACKAGE_DIR%\\source\\fastjsond\\c\\simdjson.cpp\" /Fo\"%PACKAGE_DIR%\\.dub\\obj\\simdjson.obj\"",
         "cl /c /O2 /std:c++17 /EHsc /DNDEBUG /I\"%PACKAGE_DIR%\\source\\fastjsond\\c\" \"%PACKAGE_DIR%\\source\\fastjsond\\c\\api.cpp\" /Fo\"%PACKAGE_DIR%\\.dub\\obj\\api.obj\""
     ],
-    
-    "postBuildCommands-posix": [
-        "ar rcs $PACKAGE_DIR/libfastjsond.a $PACKAGE_DIR/.dub/obj/simdjson.o $PACKAGE_DIR/.dub/obj/api.o"
+
+    "sourceFiles-posix": [
+        ".dub/obj/simdjson.o",
+        ".dub/obj/api.o"
     ],
-    
-    "postBuildCommands-windows": [
-        "lib /OUT:\"%PACKAGE_DIR%\\fastjsond.lib\" \"%PACKAGE_DIR%\\fastjsond.lib\" \"%PACKAGE_DIR%\\.dub\\obj\\simdjson.obj\" \"%PACKAGE_DIR%\\.dub\\obj\\api.obj\""
+    "sourceFiles-windows": [
+        ".dub/obj/simdjson.obj",
+        ".dub/obj/api.obj"
     ],
-    
+    "extraDependencyFiles": [
+        "source/fastjsond/c/simdjson.cpp",
+        "source/fastjsond/c/simdjson.h",
+        "source/fastjsond/c/api.cpp",
+        "source/fastjsond/c/api.h"
+    ],
+
     "buildTypes": {
         "release": {
             "dflags-ldc2": ["-O2", "-release", "-enable-inlining"],
