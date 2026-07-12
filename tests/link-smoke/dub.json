@@ -1,0 +1,14 @@
+{
+    "name": "fastjsond-link-smoke",
+    "description": "Executable consumer proving Fastjsond native symbols propagate through DUB",
+    "authors": ["Federico Filippi"],
+    "license": "MIT",
+    "targetType": "executable",
+    "dependencies": {
+        "fastjsond": {
+            "path": "../.."
+        }
+    },
+    "sourcePaths": ["source"],
+    "mainSourceFile": "source/app.d"
+}
