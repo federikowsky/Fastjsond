@@ -7,6 +7,12 @@ DC       := ldc2
 CXX      := clang++
 AR       := ar
 
+UNAME_S       := $(shell uname -s)
+CXX_LINK_FLAG := -L-lstdc++
+ifeq ($(UNAME_S),Darwin)
+    CXX_LINK_FLAG := -L-lc++
+endif
+
 # Directories
 BUILD_DIR    := build
 SRC_DIR      := source
@@ -122,7 +128,7 @@ $(LIB_OUT): $(CPP_OBJECTS) $(BUILD_DIR)/fastjsond.o
 # Pattern rule: build any test from tests/*.d
 $(BUILD_DIR)/%: $(TEST_DIR)/%.d $(LIB_OUT) | $(BUILD_DIR)
 	@echo "[DC] Building $*..."
-	@$(DC) $(DFLAGS) $< $(LIB_OUT) -L-lc++ -of=$@ -od=$(BUILD_DIR)
+	@$(DC) $(DFLAGS) $< $(LIB_OUT) $(CXX_LINK_FLAG) -of=$@ -od=$(BUILD_DIR)
 	@echo "✓ Built: $@"
 
 # Run native API tests
@@ -132,7 +138,7 @@ test: $(BUILD_DIR)/native_test
 	@echo "============================"
 	@$(BUILD_DIR)/native_test
 
-# Run std API tests  
+# Run std API tests
 test-std: $(BUILD_DIR)/std_test
 	@echo ""
 	@echo "Running Std API Tests..."
