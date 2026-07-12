@@ -1,0 +1,62 @@
+name: CI
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  push:
+    branches: [main, "codex/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DUB_HOME: ${{ github.workspace }}/.ci-home
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dlang-community/setup-dlang@v2
+        with:
+          compiler: ldc-1.42.0
+          dub: 1.41.0
+
+      - name: Capture toolchain
+        run: |
+          set -o pipefail
+          mkdir -p artifacts/ci
+          ldc2 --version 2>&1 | tee artifacts/ci/ldc.txt
+          dub --version 2>&1 | tee artifacts/ci/dub.txt
+          c++ --version 2>&1 | tee artifacts/ci/cxx.txt
+          uname -a | tee artifacts/ci/uname.txt
+
+      - name: Build libraries
+        run: |
+          set -o pipefail
+          HOME="$DUB_HOME" dub build --compiler=ldc2 2>&1 | tee artifacts/ci/build-debug.log
+          HOME="$DUB_HOME" dub build --compiler=ldc2 --build=release 2>&1 | tee artifacts/ci/build-release.log
+
+      - name: Run repository tests
+        run: |
+          set -o pipefail
+          make test-all 2>&1 | tee artifacts/ci/repository-tests.log
+
+      - name: Link and run downstream consumer
+        run: |
+          set -o pipefail
+          HOME="$DUB_HOME" dub run --root=tests/link-smoke --compiler=ldc2 --build=release 2>&1 | tee artifacts/ci/link-smoke.log
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastjsond-linux-${{ github.sha }}
+          path: artifacts/ci
+          if-no-files-found: error
